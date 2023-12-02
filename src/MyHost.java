@@ -3,24 +3,26 @@
 import java.util.Comparator;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MyHost extends Host {
     private final PriorityBlockingQueue<Task> queued_tasks = new PriorityBlockingQueue<>(10,
             Comparator.comparingInt(Task::getPriority).reversed().thenComparingInt(Task::getStart));
     private static final Task POISON_VALUE = new Task(-1, -1, -1, TaskType.SHORT, -1, false);
-    private Task running_task;
-    private final AtomicLong work_left = new AtomicLong();
+    private final AtomicReference<Task> running_task = new AtomicReference<>(null);
+    private final AtomicLong work_left = new AtomicLong(0);
     private boolean exit = false;
 
     private void executeTask() {
-        long start_sleep_time = 0;
-        long time_left = running_task.getLeft();
+        long start_sleep_time = System.currentTimeMillis();
+        long time_left = running_task.get().getLeft();
 
         try {
-            // sleep for one second at a time in order to get a more accurate work_left value
+            // sleep for half a second at a time in order to get a more accurate work_left value
             while (time_left > 0) {
-                // sleep for one second if time_left if greater than one second or for time_left milliseconds otherwise
-                long sleeping_time = (time_left < 1000) ? time_left : 1000;
+                // sleep for half a second if time_left if greater than half a second or for time_left milliseconds
+                // otherwise
+                long sleeping_time = (time_left < 500) ? time_left : 500;
 
                 // get the current time in case there will be an interrupt and sleep will not finish
                 start_sleep_time = System.currentTimeMillis();
@@ -32,8 +34,8 @@ public class MyHost extends Host {
             }
 
             // finish the task
-            running_task.finish();
-            running_task = null;
+            running_task.get().finish();
+            running_task.set(null);
 
         } catch (InterruptedException e) {
             // task was interrupted
@@ -44,11 +46,11 @@ public class MyHost extends Host {
 
             // update the work_left and the time left on the running task
             work_left.addAndGet(-sleeping_time);
-            running_task.setLeft(time_left - sleeping_time);
+            running_task.get().setLeft(time_left - sleeping_time);
 
             // add the task back to the queue
-            queued_tasks.add(running_task);
-            running_task = null;
+            queued_tasks.add(running_task.get());
+            running_task.set(null);
         }
     }
 
@@ -58,10 +60,10 @@ public class MyHost extends Host {
             try {
                 // get the next task from the priority queue. If there is no task in the queue, it will block and wait
                 // for one
-                running_task = queued_tasks.take();
+                running_task.set(queued_tasks.take());
 
                 // if the poison value is received, end the execution of the thread
-                if (running_task == POISON_VALUE) {
+                if (running_task.get() == POISON_VALUE) {
                     exit = true;
 
                 // otherwise, execute the task
@@ -85,7 +87,8 @@ public class MyHost extends Host {
 
         // if the running task is preemptible and a task with a higher priority was added to the queue, interrupt the
         // running task
-        if (running_task != null && running_task.isPreemptible() && running_task.getPriority() < task.getPriority()) {
+        Task rt = running_task.get();
+        if (rt != null && rt.isPreemptible() && rt.getPriority() < task.getPriority()) {
             interrupt();
         }
     }
@@ -93,7 +96,7 @@ public class MyHost extends Host {
     @Override
     public int getQueueSize() {
         // return the size of the queue, including the running task if there is one
-        return queued_tasks.size() + ((running_task != null) ? 1 : 0);
+        return queued_tasks.size() + ((running_task.get() != null) ? 1 : 0);
     }
 
     @Override
