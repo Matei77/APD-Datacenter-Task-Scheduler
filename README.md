@@ -20,7 +20,8 @@ The dispatcher is responsible for allocating tasks to hosts. It implements 4 sch
 go the first host, medium to the second and long to the third.
 
 #### Least Work Left
-- This algorithm will send each received task to the host with the least work left.
+- This algorithm will send each received task to the host with the least work left. The work left is expressed in
+milliseconds, so, in order to use seconds granularity, we will divide the work left by 1000 when comparing.
 
 ## MyHost
 The host is represented as a class that extends *Thread*. Some of the more important fields are:

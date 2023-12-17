@@ -42,8 +42,8 @@ public class MyDispatcher extends Dispatcher {
     }
 
     private void addLeastWorkLeft(Task task) {
-        // send the task to the host based on the work left
-        Host designated_host = Collections.min(hosts, Comparator.comparingLong(Host::getWorkLeft));
+        // send the task to the host based on the work left (using seconds granularity)
+        Host designated_host = Collections.min(hosts, Comparator.comparingLong(host -> host.getWorkLeft() / 1000));
         designated_host.addTask(task);
     }
 }
