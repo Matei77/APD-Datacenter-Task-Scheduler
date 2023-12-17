@@ -37,7 +37,9 @@ conditions, when updating the value of the *work_left*.
 
 When the dispatcher adds a task to a host it calls the `addTask()` method. This will update the queue and the
 *work_left* value. If the running task is preemptible and a task with a higher priority was added to the queue, the
-running task will be interrupted.
+running task will be interrupted. This method is **synchronized**, in order to avoid race conditions when adding tasks.
+For example, if there was no synchronization when the Round Robin algorithm was used and two tasks came at the same
+time, they could potentially be sent to the same host instead of two consecutive ones.
 
 The host thread is running until `shutdown()` is called. At that point, in the queue will be added a *poison* value,
 which has the objective of notifying the thread that there are no other tasks coming and that the thread can stop

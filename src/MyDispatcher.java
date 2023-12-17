@@ -12,7 +12,7 @@ public class MyDispatcher extends Dispatcher {
     int round_robin_index = 0;
 
     @Override
-    public void addTask(Task task) {
+    public synchronized void addTask(Task task) {
         switch(algorithm) {
             case ROUND_ROBIN -> addRoundRobinTask(task);
             case SHORTEST_QUEUE -> addShortestQueueTask(task);
